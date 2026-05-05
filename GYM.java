@@ -1,36 +1,63 @@
 import java.io.*;
+import java.time.*;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
-// =================== MODELS ===================
-class Member implements Serializable {
-    private static final long serialVersionUID = 1L;
+// ================= INTERFACE =================
+interface Displayable {
+    void display();
+}
 
-    private int id;
-    private String name;
-    private int age;
-    private String contact;
-    private String plan;
+// ================= ABSTRACT CLASS =================
+abstract class Person implements Serializable, Displayable {
+    protected int id;
+    protected String name;
+    protected int age;
+    protected String contact;
 
-    public Member(int id, String name, int age, String contact, String plan) {
+    public Person(int id, String name, int age, String contact) {
         this.id = id;
         this.name = name;
         this.age = age;
         this.contact = contact;
-        this.plan = plan;
     }
 
     public int getId() { return id; }
 
+    public abstract void display();
+}
+
+// ================= MEMBER =================
+class Member extends Person {
+    private String plan;
+    private LocalDate startDate;
+    private int durationDays;
+
+    public Member(int id, String name, int age, String contact, String plan, int durationDays) {
+        super(id, name, age, contact);
+        this.plan = plan;
+        this.durationDays = durationDays;
+        this.startDate = LocalDate.now();
+    }
+
+    public long getDaysLeft() {
+        LocalDate expiry = startDate.plusDays(durationDays);
+        return ChronoUnit.DAYS.between(LocalDate.now(), expiry);
+    }
+
+    @Override
     public void display() {
+        long days = getDaysLeft();
+        String status = (days > 0) ? days + " days left" : "Expired";
+
         System.out.println("ID: " + id + ", Name: " + name +
-                ", Age: " + age + ", Contact: " + contact +
-                ", Plan: " + plan);
+                ", Plan: " + plan +
+                ", Membership: " + status);
     }
 }
 
-class Payment implements Serializable {
-    private static final long serialVersionUID = 1L;
-
+// ================= PAYMENT =================
+class Payment implements Serializable, Displayable {
     private int memberId;
     private double amount;
     private String mode;
@@ -43,16 +70,16 @@ class Payment implements Serializable {
 
     public int getMemberId() { return memberId; }
 
+    @Override
     public void display() {
         System.out.println("Member ID: " + memberId +
-                ", Amount: " + amount +
+                ", Amount: ₹" + amount +
                 ", Mode: " + mode);
     }
 }
 
-class Attendance implements Serializable {
-    private static final long serialVersionUID = 1L;
-
+// ================= ATTENDANCE =================
+class Attendance implements Serializable, Displayable {
     private int memberId;
     private String date;
 
@@ -61,15 +88,14 @@ class Attendance implements Serializable {
         this.date = date;
     }
 
+    @Override
     public void display() {
-        System.out.println("Member ID: " + memberId +
-                ", Date: " + date);
+        System.out.println("Member ID: " + memberId + ", Date: " + date);
     }
 }
 
-class Workout implements Serializable {
-    private static final long serialVersionUID = 1L;
-
+// ================= WORKOUT =================
+class Workout implements Serializable, Displayable {
     private int memberId;
     private String schedule;
 
@@ -80,23 +106,30 @@ class Workout implements Serializable {
 
     public int getMemberId() { return memberId; }
 
+    @Override
     public void display() {
         System.out.println("Workout Plan:\n" + schedule);
     }
 }
 
-// Wrapper to store everything together (including idCounter)
+// ================= STORAGE =================
 class GymData implements Serializable {
-    private static final long serialVersionUID = 1L;
+    private ArrayList<Member> members = new ArrayList<>();
+    private ArrayList<Payment> payments = new ArrayList<>();
+    private ArrayList<Attendance> attendanceList = new ArrayList<>();
+    private ArrayList<Workout> workouts = new ArrayList<>();
+    private int idCounter = 1000;
 
-    ArrayList<Member> members = new ArrayList<>();
-    ArrayList<Payment> payments = new ArrayList<>();
-    ArrayList<Attendance> attendanceList = new ArrayList<>();
-    ArrayList<Workout> workouts = new ArrayList<>();
-    int idCounter = 1000;
+    // Getters (Encapsulation)
+    public ArrayList<Member> getMembers() { return members; }
+    public ArrayList<Payment> getPayments() { return payments; }
+    public ArrayList<Attendance> getAttendanceList() { return attendanceList; }
+    public ArrayList<Workout> getWorkouts() { return workouts; }
+
+    public int generateId() { return idCounter++; }
 }
 
-// =================== MAIN APP ===================
+// ================= MAIN =================
 public class GYM {
 
     static Scanner sc = new Scanner(System.in);
@@ -107,221 +140,165 @@ public class GYM {
 
         while (true) {
             System.out.println("\n===== GYM MANAGEMENT SYSTEM =====");
-            System.out.println("1. Add Member (with Payment & Workout)");
+            System.out.println("1. Add Member");
             System.out.println("2. View Members");
             System.out.println("3. View Payments");
             System.out.println("4. Mark Attendance");
             System.out.println("5. View Attendance");
             System.out.println("6. Delete Member");
-            System.out.println("7. View Workout Schedule");
+            System.out.println("7. View Workout");
             System.out.println("0. Exit");
 
-            System.out.print("Enter choice: ");
-            int choice = safeInt();
+            int ch = sc.nextInt();
 
-            switch (choice) {
+            switch (ch) {
                 case 1: addMember(); break;
-                case 2: viewMembers(); break;
-                case 3: viewPayments(); break;
+                case 2: viewList(data.getMembers()); break;
+                case 3: viewList(data.getPayments()); break;
                 case 4: markAttendance(); break;
-                case 5: viewAttendance(); break;
+                case 5: viewList(data.getAttendanceList()); break;
                 case 6: deleteMember(); break;
-                case 7: viewWorkout(); break;
+                case 7: viewList(data.getWorkouts()); break;
                 case 0:
                     saveData();
-                    System.out.println("Data saved. Exiting...");
+                    System.out.println("Saved & Exiting...");
                     return;
-                default:
-                    System.out.println("Invalid choice!");
             }
         }
     }
 
-    // =================== STORAGE ===================
+    // ================= GENERIC POLYMORPHISM =================
+    static <T extends Displayable> void viewList(ArrayList<T> list) {
+        for (T item : list) {
+            item.display();
+            System.out.println("---------------");
+        }
+    }
+
+    // ================= FILE =================
     static void saveData() {
-        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream("gym.dat"))) {
+        try {
+            ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream("gym.dat"));
             oos.writeObject(data);
+            oos.close();
         } catch (Exception e) {
-            System.out.println("Error saving data: " + e.getMessage());
+            System.out.println("Save error");
         }
     }
 
     static void loadData() {
-        File f = new File("gym.dat");
-        if (!f.exists()) {
-            System.out.println("No previous data found. Starting fresh.");
-            return;
-        }
-        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(f))) {
+        try {
+            ObjectInputStream ois = new ObjectInputStream(new FileInputStream("gym.dat"));
             data = (GymData) ois.readObject();
-            System.out.println("Data loaded successfully.");
+            ois.close();
         } catch (Exception e) {
-            System.out.println("Error loading data. Starting fresh.");
-            data = new GymData();
+            System.out.println("Fresh start");
         }
     }
 
-    // =================== HELPERS ===================
-    static int safeInt() {
-        while (!sc.hasNextInt()) {
-            System.out.print("Enter a valid number: ");
-            sc.next();
-        }
-        return sc.nextInt();
-    }
-
-    // =================== MEMBER + PAYMENT + WORKOUT ===================
+    // ================= ADD MEMBER =================
     static void addMember() {
-        int id = data.idCounter++;
-        System.out.println("Generated Member ID: " + id);
+        int id = data.generateId();
+        System.out.println("Generated ID: " + id);
 
         sc.nextLine();
-        System.out.print("Enter Name: ");
+        System.out.print("Name: ");
         String name = sc.nextLine();
 
-        System.out.print("Enter Age: ");
-        int age = safeInt();
-        sc.nextLine();
+        System.out.print("Age: ");
+        int age = sc.nextInt(); sc.nextLine();
 
-        System.out.print("Enter Contact: ");
+        System.out.print("Contact: ");
         String contact = sc.nextLine();
 
-        // PLAN + PRICE
-        System.out.println("\nChoose Subscription Plan:");
-        System.out.println("1. 1 Month - 1000");
-        System.out.println("2. 3 Months - 2500");
-        System.out.println("3. 6 Months - 4500");
-        System.out.println("4. 1 Year - 8500");
+        System.out.println("\n1. 1 Month (1000)");
+        System.out.println("2. 3 Months (2500)");
+        System.out.println("3. 6 Months (4500)");
+        System.out.println("4. 1 Year (8500)");
 
-        int p = safeInt();
-        sc.nextLine();
+        int p = sc.nextInt(); sc.nextLine();
 
-        String plan;
-        double amount;
+        String plan = "";
+        double amount = 0;
+        int duration = 0;
 
         switch (p) {
-            case 1: plan = "1 Month"; amount = 1000; break;
-            case 2: plan = "3 Months"; amount = 2500; break;
-            case 3: plan = "6 Months"; amount = 4500; break;
-            case 4: plan = "1 Year"; amount = 8500; break;
-            default:
-                System.out.println("Invalid plan!");
-                return;
+            case 1: plan="1 Month"; amount=1000; duration=30; break;
+            case 2: plan="3 Months"; amount=2500; duration=90; break;
+            case 3: plan="6 Months"; amount=4500; duration=180; break;
+            case 4: plan="1 Year"; amount=8500; duration=365; break;
+            default: System.out.println("Invalid"); return;
         }
 
-        System.out.print("Enter Payment Mode (Cash/Card/Online): ");
+        System.out.print("Payment Mode: ");
         String mode = sc.nextLine();
 
-        data.members.add(new Member(id, name, age, contact, plan));
-        data.payments.add(new Payment(id, amount, mode));
-        System.out.println("Payment of ₹" + amount + " recorded!");
+        data.getMembers().add(new Member(id,name,age,contact,plan,duration));
+        data.getPayments().add(new Payment(id,amount,mode));
 
-        // WORKOUT
-        System.out.println("\nChoose Workout Plan:");
-        System.out.println("1. Your Own Workout");
-        System.out.println("2. Our Workout");
+        System.out.println("\n1. Custom Workout\n2. Default Workout");
+        int w = sc.nextInt(); sc.nextLine();
 
-        int w = safeInt();
-        sc.nextLine();
-
-        String schedule;
-
-        if (w == 1) {
-            String[] days = {"Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"};
-            StringBuilder sb = new StringBuilder();
-            for (String day : days) {
-                System.out.print(day + ": ");
-                sb.append(day).append(" - ").append(sc.nextLine()).append("\n");
+        String schedule="";
+        if(w==1){
+            String[] days={"Mon","Tue","Wed","Thu","Fri","Sat","Sun"};
+            for(String d:days){
+                System.out.print(d+": ");
+                schedule+=d+" - "+sc.nextLine()+"\n";
             }
-            schedule = sb.toString();
         } else {
-            schedule =
-                "Monday - Chest + Tricep\n" +
-                "Tuesday - Back + Bicep\n" +
-                "Wednesday - Shoulders + Abs\n" +
-                "Thursday - Bicep + Tricep\n" +
-                "Friday - Legs\n" +
-                "Saturday - Circuit\n" +
-                "Sunday - Rest";
+            schedule="Mon-Chest\nTue-Back\nWed-Shoulders\nThu-Arms\nFri-Legs\nSat-Circuit\nSun-Rest";
         }
 
-        data.workouts.add(new Workout(id, schedule));
+        data.getWorkouts().add(new Workout(id,schedule));
 
         saveData();
-        System.out.println("Member added successfully!");
+        System.out.println("Member added!");
     }
 
-    static void viewMembers() {
-        if (data.members.isEmpty()) {
-            System.out.println("No members found!");
-            return;
-        }
-        for (Member m : data.members) {
-            m.display();
-            for (Workout w : data.workouts) {
-                if (w.getMemberId() == m.getId()) {
-                    w.display();
-                }
-            }
-            System.out.println("----------------------");
-        }
-    }
-
-    static void deleteMember() {
-        System.out.print("Enter Member ID to delete: ");
-        int id = safeInt();
-
-        boolean removed = data.members.removeIf(m -> m.getId() == id);
-        data.payments.removeIf(p -> p.getMemberId() == id);
-        data.workouts.removeIf(w -> w.getMemberId() == id);
-
-        saveData();
-
-        if (removed) System.out.println("Member deleted!");
-        else System.out.println("Member not found!");
-    }
-
-    // =================== PAYMENT ===================
-    static void viewPayments() {
-        if (data.payments.isEmpty()) {
-            System.out.println("No payments found!");
-            return;
-        }
-        for (Payment p : data.payments) p.display();
-    }
-
-    // =================== ATTENDANCE ===================
+    // ================= ATTENDANCE =================
     static void markAttendance() {
-        System.out.print("Enter Member ID: ");
-        int id = safeInt();
-        sc.nextLine();
+        System.out.print("Enter ID: ");
+        int id = sc.nextInt(); sc.nextLine();
 
-        System.out.print("Enter Date (dd-mm-yyyy): ");
+        Member found = null;
+        for(Member m : data.getMembers()){
+            if(m.getId() == id){
+                found = m;
+                break;
+            }
+        }
+
+        if(found == null){
+            System.out.println("Member not found");
+            return;
+        }
+
+        long days = found.getDaysLeft();
+
+        if(days <= 0)
+            System.out.println("❌ Expired");
+        else
+            System.out.println("✅ " + days + " days left");
+
+        System.out.print("Date: ");
         String date = sc.nextLine();
 
-        data.attendanceList.add(new Attendance(id, date));
+        data.getAttendanceList().add(new Attendance(id,date));
         saveData();
-        System.out.println("Attendance marked!");
+
+        System.out.println("Attendance done");
     }
 
-    static void viewAttendance() {
-        if (data.attendanceList.isEmpty()) {
-            System.out.println("No attendance records!");
-            return;
-        }
-        for (Attendance a : data.attendanceList) a.display();
-    }
+    // ================= DELETE =================
+    static void deleteMember() {
+        int id = sc.nextInt();
 
-    // =================== WORKOUT ===================
-    static void viewWorkout() {
-        if (data.workouts.isEmpty()) {
-            System.out.println("No workout schedules found!");
-            return;
-        }
-        for (Workout w : data.workouts) {
-            System.out.println("Member ID: " + w.getMemberId());
-            w.display();
-            System.out.println("----------------------");
-        }
+        data.getMembers().removeIf(m -> m.getId() == id);
+        data.getPayments().removeIf(p -> p.getMemberId() == id);
+        data.getWorkouts().removeIf(w -> w.getMemberId() == id);
+
+        saveData();
+        System.out.println("Deleted");
     }
 }
